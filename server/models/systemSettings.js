@@ -87,6 +87,15 @@ const SystemSettings = {
             AstraDBEndpoint: process?.env?.ASTRA_DB_ENDPOINT,
           }
         : {}),
+      ...(vectorDB === "oceanbase"
+        ? {
+            OceanBaseHost: process.env.OB_HOST,
+            OceanBasePort: process.env.OB_PORT,
+            OceanBaseUser: process.env.OB_USER,
+            OceanBasePassword: !!process.env.OB_PASSWORD,
+            OceanBaseDataBase: process.env.OB_DATABASE,
+          }
+        : {}),
       LLMProvider: llmProvider,
       ...(llmProvider === "openai"
         ? {

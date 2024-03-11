@@ -22,6 +22,7 @@ import LanceDbLogo from "@/media/vectordbs/lancedb.png";
 import WeaviateLogo from "@/media/vectordbs/weaviate.png";
 import QDrantLogo from "@/media/vectordbs/qdrant.png";
 import MilvusLogo from "@/media/vectordbs/milvus.png";
+import OceanBaseLogo from "@/media/vectordbs/oceanbase.png";
 import React, { useState, useEffect } from "react";
 import paths from "@/utils/paths";
 import { useNavigate } from "react-router-dom";
@@ -197,6 +198,13 @@ const VECTOR_DB_PRIVACY = {
     ],
     logo: LanceDbLogo,
   },
+  oceanbase: {
+    name: "OceanBase",
+    description: [
+      "Your vectors and document text are stored on your OceanBase instance (docker or self-hosted)."
+    ],
+    logo: OceanBaseLogo,
+  }
 };
 
 const EMBEDDING_ENGINE_PRIVACY = {

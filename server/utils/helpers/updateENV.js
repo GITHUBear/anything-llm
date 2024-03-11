@@ -229,6 +229,27 @@ const KEY_MAPPING = {
     checks: [isNotEmpty],
   },
 
+  OceanBaseHost: {
+    envKey: "OB_HOST",
+    checks: [isNotEmpty],
+  },
+  OceanBasePort: {
+    envKey: "OB_PORT",
+    checks: [isNotEmpty],
+  },
+  OceanBaseUser: {
+    envKey: "OB_USER",
+    checks: [isNotEmpty],
+  },
+  OceanBasePassword: {
+    envKey: "OB_PASSWORD",
+    checks: [],
+  },
+  OceanBaseDataBase: {
+    envKey: "OB_DATABASE",
+    checks: [isNotEmpty],
+  },
+
   // Together Ai Options
   TogetherAiApiKey: {
     envKey: "TOGETHER_AI_API_KEY",
@@ -388,6 +409,7 @@ function supportedVectorDB(input = "") {
     "milvus",
     "zilliz",
     "astra",
+    "oceanbase",
   ];
   return supported.includes(input)
     ? null

@@ -8,6 +8,7 @@ import QDrantLogo from "@/media/vectordbs/qdrant.png";
 import MilvusLogo from "@/media/vectordbs/milvus.png";
 import ZillizLogo from "@/media/vectordbs/zilliz.png";
 import AstraDBLogo from "@/media/vectordbs/astraDB.png";
+import OceanBaseLogo from "@/media/vectordbs/oceanbase.png";
 import System from "@/models/system";
 import paths from "@/utils/paths";
 import PineconeDBOptions from "@/components/VectorDBSelection/PineconeDBOptions";
@@ -18,6 +19,7 @@ import LanceDBOptions from "@/components/VectorDBSelection/LanceDBOptions";
 import MilvusOptions from "@/components/VectorDBSelection/MilvusDBOptions";
 import ZillizCloudOptions from "@/components/VectorDBSelection/ZillizCloudOptions";
 import AstraDBOptions from "@/components/VectorDBSelection/AstraDBOptions";
+import OceanBaseOptions from "@/components/VectorDBSelection/OceanBaseOptions";
 import showToast from "@/utils/toast";
 import { useNavigate } from "react-router-dom";
 import VectorDBItem from "@/components/VectorDBSelection/VectorDBItem";
@@ -109,7 +111,15 @@ export default function VectorDatabaseConnection({
       options: <AstraDBOptions settings={settings} />,
       description: "Vector Search for Real-world GenAI.",
     },
+    {
+      name: "OceanBase",
+      value: "oceanbase",
+      logo: OceanBaseLogo,
+      options: <OceanBaseOptions settings={settings} />,
+      description: "Distributed relational database developed by Ant Group.",
+    },
   ];
+  console.log(VECTOR_DBS);
 
   function handleForward() {
     if (hiddenSubmitButtonRef.current) {

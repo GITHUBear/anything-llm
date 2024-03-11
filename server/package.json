@@ -61,7 +61,9 @@
     "uuid": "^9.0.0",
     "uuid-apikey": "^1.5.3",
     "vectordb": "0.1.19",
-    "weaviate-ts-client": "^1.4.0"
+    "weaviate-ts-client": "^1.4.0",
+    "mysql2": "^3.9.2",
+    "sequelize": "^6.37.1"
   },
   "devDependencies": {
     "eslint": "^8.50.0",

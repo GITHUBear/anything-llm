@@ -25,6 +25,9 @@ function getVectorDbClass() {
     case "astra":
       const { AstraDB } = require("../vectorDbProviders/astra");
       return AstraDB;
+    case "oceanbase":
+      const { OceanBase } = require("../vectorDbProviders/oceanbase");
+      return OceanBase;
     default:
       throw new Error("ENV: No VECTOR_DB value found in environment!");
   }
