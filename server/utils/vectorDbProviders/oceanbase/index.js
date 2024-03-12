@@ -209,7 +209,19 @@ const OceanBase = {
     },
     deleteDocumentFromNamespace: async function (namespace, docId) {
         console.log("OceanBase deleteDocumentFromNamespace....");
-        // Deleting vector is not implement in OceanBase.
+        const { DocumentVectors } = require("../../../models/vectors");
+        const { connection } = await this.connect();
+        if (!(await this.namespaceExists(connection, namespace))) return;
+        const knownDocuments = await DocumentVectors.where({ docId });
+        // do deletes in OceanBase.
+        const vectorIds = knownDocuments.map((doc) => doc.vectorId);
+        const queryIn = vectorIds.map((v) => `'${v}'`).join(",");
+        const delete_sql = `DELETE FROM VTB_${namespace} WHERE id IN (${queryIn})`;
+        await connection.query(delete_sql, { type: QueryTypes.DELETE });
+
+        const indexes = knownDocuments.map((doc) => doc.id);
+        await DocumentVectors.deleteIds(indexes);
+        
         return true;
     },
     performSimilaritySearch: async function ({
