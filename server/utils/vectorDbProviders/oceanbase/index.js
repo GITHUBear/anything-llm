@@ -1,4 +1,4 @@
-const { Sequelize, QueryTypes, Model, DataTypes } = require('sequelize');
+const { Sequelize, QueryTypes, Model, DataTypes, Utils } = require('sequelize');
 const {
     toChunks,
     getLLMProvider,
@@ -9,37 +9,10 @@ const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
 const { storeVectorResult, cachedVectorInformation } = require("../../files");
 const { v4: uuidv4 } = require("uuid");
 
-class OBVECTOR extends DataTypes.ABSTRACT {
-    constructor(dim) {
-        super();
-        this.dim = dim;
-    }
-    toSql() {
-        return `VECTOR(${dim})`;
-    }
-    _stringify(value) {
-        if (Array.isArray(value) && value.length === this.dim) {
-            return `'[${value.join(',')}]'`;
-        } else {
-            throw new Error(`VECTOR(${this.dim}) received a value of incorrect dimension`);
-        }
-    }
-    _sanitize(value) {
-        if (typeof value === 'string') {
-            return value.substring(1, value.length - 1).split(',').map(Number);
-        } else {
-            throw new Error(`value is not a string`);
-        }
-    }
-    _isChanged(value, originalValue) {
-        return value.join(',') !== originalValue.join(',');
-    }
-}
-DataTypes.OBVECTOR = OBVECTOR;
-
 const OceanBase = {
     name: "OceanBase",
     connect: async function () {
+        console.log("OceanBase connection....");
         if (process.env.VECTOR_DB !== "oceanbase") {
             throw new Error("OceanBase::Invalid ENV settings");
         }
@@ -72,13 +45,14 @@ const OceanBase = {
         const vtbs = await connection.query(query_vtbs, { type: QueryTypes.SELECT });
         return vtbs;
     },
-    getTableRowCount: async function(table_name, _client = null) {
-        const query_vtb_row_count = `SELECT COUNT(*) as count FROM ${table_name}`;
+    getTableRowCount: async function(namespace, _client = null) {  // with VTB_ prefix
+        const query_vtb_row_count = `SELECT COUNT(*) as count FROM ${namespace}`;
         const connection = _client || (await this.connect())['connection'];
         const countResult = await connection.query(query_vtb_row_count, { type: QueryTypes.SELECT });
         return countResult[0]['count'];
     },
     totalVectors: async function() {
+        console.log("OceanBase totalVectors....");
         const { connection } = await this.connect();
         const vtbs = await this.tables(connection);
         let count = 0;
@@ -88,11 +62,12 @@ const OceanBase = {
         return count;
     },
     namespaceCount: async function(_namespace = null) {
+        console.log("OceanBase namespaceCount....");
         const { connection } = await this.connect();
         const exists = await this.namespaceExists(connection, _namespace);
         if (!exists) return 0;
 
-        return (await this.getTableRowCount(_namespace, connection)) || 0;
+        return (await this.getTableRowCount(`VTB_${_namespace}`, connection)) || 0;
     },
     namespace: async function (_client, namespace = null) {
         if (!namespace) throw new Error("No namespace value provided.");
@@ -117,7 +92,7 @@ const OceanBase = {
         const table_names = vtbs.map(vtb => {
             return vtb[Object.keys(vtb)[0]];
         });
-        return table_names.includes(namespace);
+        return table_names.includes(`VTB_${namespace}`);
     },
     deleteVectorsInNamespace: async function (_client, namespace = null) {
         const drop_table_query = `DROP TABLE IF EXISTS VTB_${namespace}`;
@@ -130,36 +105,21 @@ const OceanBase = {
         }
     },
     updateOrCreateCollection: async function (_client, data = [], namespace) {
-        const dim = data.vector.length;
-        const table_schema = {
-            id: {
-                type: DataTypes.STRING(40),
-                allowNull: false,
-                primaryKey: true
-            },
-            embedding: {
-                type: DataTypes.OBVECTOR(dim),
-                allowNull: false,
-            },
-            metadata: {
-                type: DataTypes.JSON,
-                allowNull: true
-            }
-        };
+        if (0 == data.length) return;
+        const dim = data[0].values.length;
+        console.log(`updateOrCreateCollection: ############ ${dim} ${namespace}`);
+        const create_vec_table = `CREATE TABLE IF NOT EXISTS VTB_${namespace} (id VARCHAR(40), embedding VECTOR(${dim}) NOT NULL, metadata JSON, primary key (id))`;
         const connection = _client || (await this.connect())['connection'];
-        const vector_table = connection.define(`VTB_${namespace}`, table_schema, {
-            timestamps: false,
-            tableName: `VTB_${namespace}`,
-        });
-        // create or open table
-        await vector_table.sync();
+        // // create or open table
+        await connection.query(create_vec_table);
 
         // insert data into new_table
         for (const new_row of data) {
-            await vector_table.create({
-                id: new_row.id,
-                embedding: new_row.vector,
-                metadata: new_row.metadata
+            console.log(new_row.values);
+            const insert_sql = `INSERT INTO VTB_${namespace} VALUES (:id, '[${new_row.values.join(',')}]', :metadata)`;
+            await connection.query(insert_sql, {
+                replacements: { id: new_row.id, metadata: JSON.stringify(new_row.metadata) },
+                type: QueryTypes.INSERT
             });
         }
     },
@@ -168,6 +128,7 @@ const OceanBase = {
         documentData = {},
         fullFilePath = null
     ) {
+        console.log("OceanBase addDocumentToNamespace....");
         const { DocumentVectors } = require("../../../models/vectors");
         try {
             const { pageContent, docId, ...metadata } = documentData;
@@ -185,7 +146,7 @@ const OceanBase = {
                     chunk.forEach((chunk) => {
                         const id = uuidv4();
                         documentVectors.push({ docId, vectorId: id });
-                        submissions.push({ id: id, vector: chunk.values, metadata: chunk.metadata });
+                        submissions.push({ id: id, values: chunk.values, metadata: chunk.metadata });
                     });
                 }
           
@@ -209,6 +170,7 @@ const OceanBase = {
 
             if (!!vectorValues && vectorValues.length > 0) {
                 for (const [i, vector] of vectorValues.entries()) {
+                    console.log(`embed result: i:${i} vector:${vector.length}`);
                     const vectorRecord = {
                         id: uuidv4(),
                         values: vector,
@@ -246,6 +208,7 @@ const OceanBase = {
         }
     },
     deleteDocumentFromNamespace: async function (namespace, docId) {
+        console.log("OceanBase deleteDocumentFromNamespace....");
         // Deleting vector is not implement in OceanBase.
         return true;
     },
@@ -256,6 +219,7 @@ const OceanBase = {
         similarityThreshold = 0.25,
         topN = 4,
     }) {
+        console.log("OceanBase performSimilaritySearch....");
         if (!namespace || !input || !LLMConnector)
             throw new Error("Invalid request to performSimilaritySearch.");
 
@@ -318,6 +282,7 @@ const OceanBase = {
         return result;
     },
     "namespace-stats": async function (reqBody = {}) {
+        console.log("OceanBase namespace-stats....");
         const { namespace = null } = reqBody;
         if (!namespace) throw new Error("namespace required");
         const { connection } = await this.connect();
@@ -329,6 +294,7 @@ const OceanBase = {
             : { message: "No stats were able to be fetched from DB for namespace" };
     },
     "delete-namespace": async function (reqBody = {}) {
+        console.log("OceanBase delete-namespace....");
         const { namespace = null } = reqBody;
         const { connection } = await this.connect();
         if (!(await this.namespaceExists(connection, namespace)))

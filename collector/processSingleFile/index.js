@@ -18,7 +18,7 @@ async function processSingleFile(targetFilename) {
   if (!fs.existsSync(fullFilePath))
     return {
       success: false,
-      reason: "File does not exist in upload directory.",
+      reason: `File does not exist in upload directory. ${fullFilePath}`,
       documents: [],
     };
 
